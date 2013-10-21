@@ -38,13 +38,13 @@ d3.csv("yeardata-day-vs-sum.csv", function(error, data) {
 			data: [
 				data.map(function(row) {
                     return {
-                        x: d3.time.year.offset(parseDate(row.date), 6),
+                        x: d3.time.year.offset(parseDate(row.date), 7),
                         y: +row['2013']
                     };
                 })
 			],
 			descriptions: [
-				"2013 daily total"
+				"daily total"
 			]
 		};
 
@@ -57,7 +57,7 @@ d3.csv("yeardata-day-vs-sum.csv", function(error, data) {
 
     // TODO: reuse slices.data.x domain
 	var x = d3.time.scale()
-		.domain(d3.extent(data.map(function(row) { return d3.time.year.offset(parseDate(row.date), 6); })))
+		.domain(d3.extent(data.map(function(row) { return d3.time.year.offset(parseDate(row.date), 7); })))
 		.range([0, width]);
 
 	var y = d3.scale.linear()
