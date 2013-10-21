@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Streamgraph</title>
+<style>
+
+body {
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  margin: auto;
+  position: relative;
+  width: 960px;
+}
+
+button {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+}
+
+
+.brush .extent {
+  stroke: #fff;
+  fill-opacity: .125;
+  shape-rendering: crispEdges;
+}
+
+</style>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script>
+
+
+d3.tsv("slices.csv", function(error, data) {
+	var	parseDate = d3.time.format("%Y-%m-%d").parse,
+		slices = {
+			data: [
+				data.map( function(row) { return {x: parseDate(row.day), y: +row.total_0_100}; } ),
+				data.map( function(row) { return {x: parseDate(row.day), y: +row.total_100_1000}; } ),
+				data.map( function(row) { return {x: parseDate(row.day), y: +row.total_1000_10000}; } ),
+				data.map( function(row) { return {x: parseDate(row.day), y: +row.total_10000_100000}; } ),
+				data.map( function(row) { return {x: parseDate(row.day), y: +row.total_100000_1000000}; } )
+			],
+			descriptions: [
+				"up to $100",
+				"$100 to $1,000",
+				"$1,000 to $10,000",
+				"$10,000 to $100,000",
+				"$100,000 and up"
+			]
+		};
+
+	var stack = d3.layout.stack(),
+		layers = stack(slices.data);
+
+	var margin = {top: 30, right: 0, bottom: 80, left: 80},
+		width = 960 - (margin.left + margin.right),
+		height = 500 - (margin.top + margin.bottom);
+
+	var x = d3.time.scale()
+		.domain(d3.extent(data.map(function(row) { return parseDate(row.day); })))
+		.range([0, width]);
+
+	var y = d3.scale.linear()
+		.domain([0, d3.max(layers, function(layer) { return d3.max(layer, function(d) { return d.y0 + d.y; }); })])
+		.range([height, 0]);
+
+	var xAxis = d3.svg.axis().scale(x)
+		.orient("bottom");
+
+	var yAxis = d3.svg.axis().scale(y)
+		.orient("left");
+
+	var brush = d3.svg.brush()
+	    .x(x)
+		.on("brush", brushed);
+
+	var color = d3.scale.linear()
+		.range(["#aad", "#556"]);
+
+	var area = d3.svg.area()
+		.x(function(d) { return x(d.x); })
+		.y0(function(d) { return y(d.y0); })
+		.y1(function(d) { return y(d.y0 + d.y); });
+
+	var svg = d3.select("body").append("svg")
+		.attr("width", width + margin.left + margin.right)
+		.attr("height", height + margin.top + margin.bottom)
+		.append("g")
+			.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+	svg.selectAll("path")
+		.data(layers)
+	  .enter().append("path")
+		.attr("d", area)
+		.style("fill", function() { return color(Math.random()); });
+
+	svg.append("g")
+		.attr("class", "x axis")
+		.attr("transform", "translate(0," + height + ")")
+		.call(xAxis);
+
+	svg.append("g")
+		.attr("class", "y axis")
+		.call(yAxis);
+
+	svg.append("g")
+		.attr("class", "brush")
+		.call(brush)
+		.selectAll("rect")
+			.attr("y", -6)
+			.attr("height", height + 7);
+
+	var info = d3.select("body").append("div");
+
+	function brushed() {
+		if (brush.empty()) {
+			info.html("");
+			return;
+		}
+		var extents = brush.extent();
+		var amountHtml = "",
+			total = 0;
+
+		slices.data.forEach(function(data, index) {
+			var sum = d3.sum(data, function(row) {
+				if (row.x < extents[0] || row.x > extents[1] ) {
+					return 0;
+				}
+				return row.y;
+			});
+
+			if (sum < 0.01) {
+				return;
+			}
+			total += sum;
+			amountHtml += "<b>" + slices.descriptions[index] + ":</b> $" + sum.toFixed(2) + "<br>\n";
+		});
+
+		info.html("<h3>Selected range</h3>"
+			+ "<b>Begin:</b> " + extents[0] + "<br>"
+			+ "<b>End:</b> " + extents[1] + "<p>"
+			+ amountHtml
+			+ "Total: $" + total.toFixed(2));
+	}
+});
+</script>
