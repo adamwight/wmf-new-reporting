@@ -31,6 +31,10 @@ button {
   display: inline-block;
 }
 
+.hidden {
+  display: none;
+}
+
 </style>
 
 <svg class="line" width=900 height=400></svg>
@@ -144,10 +148,10 @@ d3.tsv("slices.csv", function(error, data) {
 	function brushed() {
 		if (brush.empty()) {
 			selection_info.html("");
-			//d3.select(".pie").style("display", "none");
+			d3.select(".pie").classed("hidden", true);
 			return;
 		} else {
-			//d3.select(".pie").style("display", "inline-block");
+			d3.select(".pie").classed("hidden", false);
 		}
 
 		var extents = brush.extent().map(function(extent) { return d3.time.day.round(extent); });
