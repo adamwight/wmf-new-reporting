@@ -23,16 +23,27 @@ button {
   shape-rendering: crispEdges;
 }
 
+.pie,
+.legend,
 .selection_info {
   display: inline-block;
 }
 
-.pie {
-  display: inline-block;
+.legend ul {
+  list-style-type: none
 }
 
 .hidden {
   display: none;
+}
+
+.legend_dot {
+  width: 2em;
+  height: 1.5em;
+  margin-bottom: -1px;
+  margin-right: 1em;
+  border: 1px solid black;
+  display: inline-block;
 }
 
 </style>
@@ -40,6 +51,7 @@ button {
 <svg class="line" width=900 height=400></svg>
 <svg class="pie" width=150 height=150></svg>
 <div class="selection_info"></div>
+<div class="legend"></div>
 
 <script src="d3.min.js"></script>
 <script>
@@ -133,6 +145,22 @@ d3.tsv("slices.csv", function(error, data) {
 
 	var selection_info = d3.select(".selection_info");
 
+	var legend = d3.selectAll(".legend")
+		.append("ul")
+			.selectAll("li")
+				.data(slices.descriptions, function(d, i) { return d })
+					.enter()
+						.append("li");
+
+	legend.append("span")
+		.attr("class", "legend_dot")
+		.style("background-color", function(d, i) { return colormap(i); })
+		.html("&nbsp;");
+
+	legend
+		.append("text")
+			.text(function(s, i) { return s; } );
+
 	function toScientific(number) {
 		if (number > 1000000) {
 			return (number / 1000000).toFixed(1) + "M";
@@ -222,15 +250,6 @@ d3.tsv("slices.csv", function(error, data) {
 					});
 				*/
 		}
-
-		/* TODO:
-		wedge.append("text")
-			.attr("transform", function(d) { return "translate(" + arc.centroid(d) + ")"; })
-			.attr("dy", ".35em")
-			.style("text-anchor", "middle")
-			.text(function(d, i) { return slices.descriptions[i]; })
-			.transition();
-		*/
 	}
 });
 </script>
