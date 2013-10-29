@@ -48,6 +48,7 @@ button {
 
 </style>
 
+<h3>2013: Donations by day, sliced by donation size</h3>
 <svg class="line" width=900 height=400></svg>
 <svg class="pie" width=150 height=150></svg>
 <div class="selection_info"></div>
@@ -88,7 +89,7 @@ d3.tsv("slices.csv", function(error, data) {
 	var stack = d3.layout.stack(),
 		layers = stack(slices.data);
 
-	var margin = {top: 30, right: 0, bottom: 80, left: 80},
+	var margin = {top: 30, right: 0, bottom: 40, left: 80},
 		width = 960 - (margin.left + margin.right),
 		height = 500 - (margin.top + margin.bottom);
 
