@@ -23,29 +23,45 @@ button {
   shape-rendering: crispEdges;
 }
 
+.info {
+  display: inline-block;
+}
+
+.pie {
+}
+
 </style>
 <script src="d3.min.js"></script>
 <script>
 
-
 d3.tsv("slices.csv", function(error, data) {
+	function mapColumns(data, columns) {
+		return columns.map(function(column) {
+			return data.map(function(row) { return {x: parseDate(row.day), y: +row[column]}; } );
+		});
+	}
+
 	var	parseDate = d3.time.format("%Y-%m-%d").parse,
 		slices = {
-			data: [
-				data.map( function(row) { return {x: parseDate(row.day), y: +row.total_0_100}; } ),
-				data.map( function(row) { return {x: parseDate(row.day), y: +row.total_100_1000}; } ),
-				data.map( function(row) { return {x: parseDate(row.day), y: +row.total_1000_10000}; } ),
-				data.map( function(row) { return {x: parseDate(row.day), y: +row.total_10000_100000}; } ),
-				data.map( function(row) { return {x: parseDate(row.day), y: +row.total_100000_1000000}; } )
-			],
+			data: mapColumns(data, [
+				"total_0_100",
+				"total_100_1000",
+				"total_1000_10000",
+				"total_10000_100000",
+				"total_100000_1000000"
+			]),
 			descriptions: [
 				"up to $100",
 				"$100 to $1,000",
 				"$1,000 to $10,000",
 				"$10,000 to $100,000",
 				"$100,000 and up"
-			]
-		};
+			],
+		},
+		colormap = d3.scale.linear().domain([0, 4]).range([
+			"#990000",
+			"#ffff00"
+		]);
 
 	var stack = d3.layout.stack(),
 		layers = stack(slices.data);
@@ -72,15 +88,12 @@ d3.tsv("slices.csv", function(error, data) {
 	    .x(x)
 		.on("brush", brushed);
 
-	var color = d3.scale.linear()
-		.range(["#aad", "#556"]);
-
 	var area = d3.svg.area()
 		.x(function(d) { return x(d.x); })
 		.y0(function(d) { return y(d.y0); })
 		.y1(function(d) { return y(d.y0 + d.y); });
 
-	var svg = d3.select("body").append("svg")
+	var svg = d3.select("body").append("svg:svg")
 		.attr("width", width + margin.left + margin.right)
 		.attr("height", height + margin.top + margin.bottom)
 		.append("g")
@@ -90,7 +103,7 @@ d3.tsv("slices.csv", function(error, data) {
 		.data(layers)
 	  .enter().append("path")
 		.attr("d", area)
-		.style("fill", function() { return color(Math.random()); });
+		.style("fill", function(d, i) { return colormap(i); });
 
 	svg.append("g")
 		.attr("class", "x axis")
@@ -108,37 +121,90 @@ d3.tsv("slices.csv", function(error, data) {
 			.attr("y", -6)
 			.attr("height", height + 7);
 
-	var info = d3.select("body").append("div");
+	var info = d3.select("body")
+		.append("div")
+		.attr("class", "info");
+	var pie = d3.select("body")
+		.append("svg")
+		.attr("class", "pie");
+
+	function toScientific(number) {
+		if (number > 1000000) {
+			return (number / 1000000).toFixed(1) + "M";
+		} else if (number > 1000) {
+			return (number / 1000).toFixed(1) + "k";
+		} else {
+			return number.toFixed(1);
+		}
+	}
+
+	var dateFormat = d3.time.format("%a %b %e, %Y");
 
 	function brushed() {
 		if (brush.empty()) {
 			info.html("");
+			pie.remove();
 			return;
 		}
-		var extents = brush.extent();
+		var extents = brush.extent().map(function(extent) { return d3.time.day.round(extent); });
+
 		var amountHtml = "",
 			total = 0;
 
-		slices.data.forEach(function(data, index) {
-			var sum = d3.sum(data, function(row) {
+		var sliceSums = slices.data.map(function(data) {
+			return d3.sum(data, function(row) {
 				if (row.x < extents[0] || row.x > extents[1] ) {
 					return 0;
 				}
 				return row.y;
 			});
+		});
 
-			if (sum < 0.01) {
+		slices.data.forEach(function(data, index) {
+			var sum = sliceSums[index];
+			if (!sum) {
 				return;
 			}
 			total += sum;
-			amountHtml += "<b>" + slices.descriptions[index] + ":</b> $" + sum.toFixed(2) + "<br>\n";
+			amountHtml += "<b>" + slices.descriptions[index] + ":</b> $" + toScientific(sum) + "<br>\n";
 		});
 
-		info.html("<h3>Selected range</h3>"
-			+ "<b>Begin:</b> " + extents[0] + "<br>"
-			+ "<b>End:</b> " + extents[1] + "<p>"
+		info.html('<div style="inline-block">'
+			+ '<h3>Selected range</h3>'
+			+ '<b>Begin:</b> ' + dateFormat(extents[0]) + '<br>'
+			+ '<b>End:</b> ' + dateFormat(extents[1]) + '<p>'
 			+ amountHtml
-			+ "Total: $" + total.toFixed(2));
+			+ 'Total: $' + toScientific(total)
+			+ '</div>');
+
+		// TODO: pie is async, single-threaded, and transitions.  Animate years.
+        var pieLayout = d3.layout.pie();
+		var radius = 50;
+		var arc = d3.svg.arc()
+				.innerRadius(0).outerRadius(radius);
+
+		var pieG = svg.selectAll("g.pie").remove()
+			.append("g")
+				.attr("class", "pie");
+
+		var wedge = pieG
+			.data(pieLayout(sliceSums))
+				.enter();
+
+		wedge.append("path")
+			.attr("transform", "translate(" + (width - radius * 2) + "," + (radius + 20) + ")" )
+			.attr("d", arc)
+			.style("fill", function(d, i) { return colormap(i); });
+
+		/*
+		wedge.append("text")
+			.attr("transform", function(d) { return "translate(" + arc.centroid(d) + ")"; })
+			.attr("dy", ".35em")
+			.style("text-anchor", "middle")
+			.text(function(d, i) { return slices.descriptions[i]; })
+			.transition();
+		*/
+
 	}
 });
 </script>
