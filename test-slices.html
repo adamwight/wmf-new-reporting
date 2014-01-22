@@ -57,10 +57,10 @@ button {
 <script src="d3.min.js"></script>
 <script>
 
-d3.tsv("slices.csv", function(error, data) {
-	function mapColumns(data, columns) {
+d3.tsv("https://raw.github.com/adamwight/wmf-new-reporting/master/slices.csv", function(error, data) {
+	function mapColumns(mapdata, columns) {
 		return columns.map(function(column) {
-			return data.map(function(row) { return {x: parseDate(row.day), y: +row[column]}; } );
+			return mapdata.map(function(row) { return {x: parseDate(row.day), y: +row[column]}; } );
 		});
 	}
 
